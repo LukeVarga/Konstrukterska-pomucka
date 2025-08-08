@@ -58,20 +58,16 @@
             <div id="initial-state" class="text-center p-10 bg-white rounded-xl shadow-md">
                 <div class="loader mx-auto"></div>
                 <h3 class="mt-4 text-sm font-medium text-gray-900">Načítám data...</h3>
-                <p class="mt-1 text-sm text-gray-500">Čekejte prosím, data se načítají z Google Sheets.</p>
+                <p class="mt-1 text-sm text-gray-500">Čekejte prosím, data se načítají ze souboru.</p>
             </div>
         </div>
     </div>
 
     <script>
         // --- Konfigurace ---
-        // Původní adresa na Google Sheet
-        const originalSheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQIU82h5HkJF_uKY9kOSHjAtckvYcOKtRZvDMXBGc2MizicJiDO4kFHeiixNLFONyxE56GJY_-7xBJE/pub?output=csv';
-        
-        // Použití CORS proxy ("prostředníka") pro obejití bezpečnostních omezení prohlížeče
-        const proxyUrl = 'https://api.allorigins.win/raw?url=';
-        const googleSheetUrl = proxyUrl + encodeURIComponent(originalSheetUrl);
-
+        // Cesta k souboru s daty v rámci tohoto repozitáře.
+        // Ujistěte se, že jste na GitHub nahráli soubor s názvem 'data.csv'.
+        const dataUrl = 'data.csv';
 
         // --- Globální proměnné ---
         let componentsData = {};
@@ -84,26 +80,15 @@
         const initialStateDiv = document.getElementById('initial-state');
 
         /**
-         * Funkce pro načtení a zpracování dat z Google Sheets.
+         * Funkce pro načtení a zpracování dat z lokálního CSV souboru.
          */
         async function fetchAndProcessData() {
-            if (originalSheetUrl === 'VLOZTE_NOVY_ODKAZ_ZDE') {
-                 initialStateDiv.innerHTML = `
-                    <h3 class="text-xl font-bold text-orange-600">Konfigurace chybí</h3>
-                    <p class="mt-2 text-gray-600">V kódu aplikace je potřeba nastavit nově vygenerovanou URL adresu vaší Google Tabulky.</p>
-                `;
-                return;
-            }
             try {
-                const response = await fetch(googleSheetUrl);
+                const response = await fetch(dataUrl);
                 if (!response.ok) {
-                    throw new Error(`Chyba při načítání dat: Server odpověděl se statusem ${response.status}`);
+                    throw new Error(`Soubor data.csv nebyl nalezen nebo k němu není přístup (stav: ${response.status})`);
                 }
                 const csvText = await response.text();
-                // Zkusíme detekovat, jestli jsme nedostali HTML stránku místo CSV
-                if (csvText.trim().startsWith('<')) {
-                    throw new Error("Načtená data vypadají jako HTML stránka, nikoliv CSV. Zřejmě je problém v publikování tabulky.");
-                }
                 parseCsvToData(csvText);
                 initializeApp();
             } catch (error) {
@@ -111,8 +96,8 @@
                 initialStateDiv.innerHTML = `
                     <div class="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg">
                         <h3 class="text-xl font-bold">Chyba při načítání dat</h3>
-                        <p class="mt-2">Aplikaci se nepodařilo spojit s Google Sheets.</p>
-                        <p class="mt-1 text-sm">Zkuste prosím přímo v prohlížeči otevřít <a href="${originalSheetUrl}" target="_blank" class="underline">tento odkaz na tabulku</a>. Měl by se vám stáhnout soubor .csv. Pokud ne, je problém v publikování tabulky.</p>
+                        <p class="mt-2">Aplikaci se nepodařilo načíst soubor <strong>data.csv</strong>.</p>
+                        <p class="mt-1 text-sm">Ujistěte se prosím, že jste soubor <strong>data.csv</strong> nahráli na GitHub do stejného repozitáře jako soubor <strong>index.html</strong>.</p>
                         <div class="mt-4 text-xs text-left bg-red-100 p-2 rounded">
                             <strong class="block mb-1">Technický detail chyby:</strong>
                             <pre class="whitespace-pre-wrap font-mono">${error.toString()}</pre>
@@ -192,8 +177,7 @@
             if (Object.keys(componentsData).length === 0) {
                  initialStateDiv.innerHTML = `
                     <h3 class="text-xl font-bold text-blue-600">Žádná data</h3>
-                    <p class="mt-2 text-gray-600">Aplikace je úspěšně připojena, ale v tabulce zatím nejsou žádná data.</p>
-                    <p class="mt-1 text-sm text-gray-500">Přidejte řádky do vaší Google Tabulky a obnovte tuto stránku.</p>
+                    <p class="mt-2 text-gray-600">Aplikace je úspěšně připojena, ale v souboru <strong>data.csv</strong> zatím nejsou žádná data.</p>
                 `;
                 initialStateDiv.style.display = 'block';
             } else {
