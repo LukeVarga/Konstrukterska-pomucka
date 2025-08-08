@@ -66,6 +66,8 @@
     <script>
         // --- Konfigurace ---
         // Zde je vložena adresa vaší publikované Google Tabulky.
+        // DŮLEŽITÉ: Ujistěte se, že používáte odkaz přímo z dialogu "Publikovat na webu"
+        // a že je ve formátu ".../pub?output=csv", nikoliv z adresního řádku prohlížeče.
         const googleSheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQIU82h5HkJF_uKY9kOSHjAtckvYcOKtRZvDMXBGc2MizicJiDO4kFHeiixNLFONyxE56GJY_-7xBJE/pub?gid=0&single=true&output=csv';
 
         // --- Globální proměnné ---
@@ -102,28 +104,45 @@
 
         /**
          * Funkce převede text ve formátu CSV na datovou strukturu, se kterou aplikace pracuje.
+         * Tato verze je robustnější a zvládá čárky uvnitř uvozovek.
          */
         function parseCsvToData(csvText) {
-            // Rozdělení podle řádků, ošetření pro různé konce řádků (\n nebo \r\n)
-            const rows = csvText.trim().split(/\r?\n/);
-            
-            if (rows.length < 2) {
+            const lines = csvText.trim().split(/\r?\n/);
+            if (lines.length < 2) {
                 componentsData = {};
                 return;
             }
 
-            // Zpracování hlavičky (první řádek)
-            const headers = rows[0].split(',').map(cell => cell.trim());
-            const dataRows = rows.slice(1);
+            // Pomocná funkce pro parsování jednoho řádku CSV, která zvládá čárky v uvozovkách
+            const parseCsvRow = (rowText) => {
+                const result = [];
+                let currentField = '';
+                let inQuotes = false;
+                for (const char of rowText) {
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        result.push(currentField);
+                        currentField = '';
+                    } else {
+                        currentField += char;
+                    }
+                }
+                result.push(currentField);
+                // Očistí buňky od případných krajních uvozovek a mezer
+                return result.map(field => field.replace(/^"|"$/g, '').trim());
+            };
             
+            const headers = parseCsvRow(lines[0]);
+            const dataRows = lines.slice(1);
             const paramHeaders = headers.slice(5);
             const data = {};
 
             dataRows.forEach(rowText => {
-                // Ošetření pro případ, že popis obsahuje čárku
-                const row = rowText.split(',').map(cell => cell.trim());
+                if (!rowText) return;
+                const row = parseCsvRow(rowText);
                 const category = row[0];
-                if (!category) return; 
+                if (!category) return;
 
                 if (!data[category]) {
                     data[category] = [];
@@ -143,10 +162,9 @@
                         component.params[header] = value;
                     }
                 });
-
                 data[category].push(component);
             });
-            
+
             componentsData = data;
         }
 
