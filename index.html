@@ -65,7 +65,13 @@
 
     <script>
         // --- Konfigurace ---
-        const googleSheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQIU82h5HkJF_uKY9kOSHjAtckvYcOKtRZvDMXBGc2MizicJiDO4kFHeiixNLFONyxE56GJY_-7xBJE/pub?gid=0&single=true&output=csv';
+        // Původní adresa na Google Sheet
+        const originalSheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQIU82h5HkJF_uKY9kOSHjAtckvYcOKtRZvDMXBGc2MizicJiDO4kFHeiixNLFONyxE56GJY_-7xBJE/pub?gid=0&single=true&output=csv';
+        
+        // Použití CORS proxy ("prostředníka") pro obejití bezpečnostních omezení prohlížeče
+        const proxyUrl = 'https://api.allorigins.win/raw?url=';
+        const googleSheetUrl = proxyUrl + encodeURIComponent(originalSheetUrl);
+
 
         // --- Globální proměnné ---
         let componentsData = {};
@@ -95,7 +101,7 @@
                     <div class="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg">
                         <h3 class="text-xl font-bold">Chyba při načítání dat</h3>
                         <p class="mt-2">Aplikaci se nepodařilo spojit s Google Sheets.</p>
-                        <p class="mt-1 text-sm">Zkuste prosím přímo v prohlížeči otevřít <a href="${googleSheetUrl}" target="_blank" class="underline">tento odkaz na tabulku</a>. Měl by se vám stáhnout soubor .csv. Pokud ne, je problém v publikování tabulky.</p>
+                        <p class="mt-1 text-sm">Zkuste prosím přímo v prohlížeči otevřít <a href="${originalSheetUrl}" target="_blank" class="underline">tento odkaz na tabulku</a>. Měl by se vám stáhnout soubor .csv. Pokud ne, je problém v publikování tabulky.</p>
                         <div class="mt-4 text-xs text-left bg-red-100 p-2 rounded">
                             <strong class="block mb-1">Technický detail chyby:</strong>
                             <pre class="whitespace-pre-wrap font-mono">${error.toString()}</pre>
