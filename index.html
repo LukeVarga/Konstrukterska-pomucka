@@ -66,7 +66,7 @@
     <script>
         // --- Konfigurace ---
         // Původní adresa na Google Sheet
-        const originalSheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQIU82h5HkJF_uKY9kOSHjAtckvYcOKtRZvDMXBGc2MizicJiDO4kFHeiixNLFONyxE56GJY_-7xBJE/pub?gid=0&single=true&output=csv';
+        const originalSheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQIU82h5HkJF_uKY9kOSHjAtckvYcOKtRZvDMXBGc2MizicJiDO4kFHeiixNLFONyxE56GJY_-7xBJE/pub?output=csv';
         
         // Použití CORS proxy ("prostředníka") pro obejití bezpečnostních omezení prohlížeče
         const proxyUrl = 'https://api.allorigins.win/raw?url=';
@@ -87,12 +87,23 @@
          * Funkce pro načtení a zpracování dat z Google Sheets.
          */
         async function fetchAndProcessData() {
+            if (originalSheetUrl === 'VLOZTE_NOVY_ODKAZ_ZDE') {
+                 initialStateDiv.innerHTML = `
+                    <h3 class="text-xl font-bold text-orange-600">Konfigurace chybí</h3>
+                    <p class="mt-2 text-gray-600">V kódu aplikace je potřeba nastavit nově vygenerovanou URL adresu vaší Google Tabulky.</p>
+                `;
+                return;
+            }
             try {
                 const response = await fetch(googleSheetUrl);
                 if (!response.ok) {
                     throw new Error(`Chyba při načítání dat: Server odpověděl se statusem ${response.status}`);
                 }
                 const csvText = await response.text();
+                // Zkusíme detekovat, jestli jsme nedostali HTML stránku místo CSV
+                if (csvText.trim().startsWith('<')) {
+                    throw new Error("Načtená data vypadají jako HTML stránka, nikoliv CSV. Zřejmě je problém v publikování tabulky.");
+                }
                 parseCsvToData(csvText);
                 initializeApp();
             } catch (error) {
