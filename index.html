@@ -59,6 +59,7 @@
             <p class="text-md text-gray-600 mt-2">Vyberte si komponentu pro zobrazení technických detailů.</p>
         </header>
 
+        <div id="error-container" class="w-full max-w-4xl mx-auto"></div>
         <div id="category-selector" class="flex justify-center flex-wrap gap-3 mb-8"></div>
         <div id="component-selector" class="w-full max-w-4xl mx-auto text-center mb-8"></div>
 
@@ -74,7 +75,6 @@
 
     <script>
         // --- Konfigurace ---
-        // *** UPRAVENO: Konfigurace nyní obsahuje i 'variationKey' pro určení sloupce s variantami ***
         const categories = {
             "Lisovací šrouby": {
                 file: "data - Lisovací šrouby.csv",
@@ -89,12 +89,16 @@
             "Lisovací sloupky uzavřené": {
                 file: "data - Lisovací sloupky uzavřené.csv",
                 icon: "Lisovací sloupek uzavřený ikona.png",
-                variationKey: "L" // ZMĚŇTE "L" na skutečný název sloupce pro délku ve vašem CSV!
+                // DŮLEŽITÉ: Ujistěte se, že název sloupce pro délku v CSV souboru je přesně 'L'.
+                // Pokud se jmenuje jinak (např. 'Délka'), změňte 'L' na tento název.
+                variationKey: "L"
             },
             "Lisovací sloupky průchozí": {
                 file: "data - Lisovací sloupky průchozí.csv",
                 icon: "Lisovací sloupek průchozí ikona.png",
-                variationKey: "L" // ZMĚŇTE "L" na skutečný název sloupce pro délku ve vašem CSV!
+                // DŮLEŽITÉ: Ujistěte se, že název sloupce pro délku v CSV souboru je přesně 'L'.
+                // Pokud se jmenuje jinak (např. 'Délka'), změňte 'L' na tento název.
+                variationKey: "L"
             }
         };
         const imageBasePath = 'images/';
@@ -104,6 +108,7 @@
         let activeCategory = null;
         let activeComponentName = null;
 
+        const errorContainer = document.getElementById('error-container');
         const categorySelector = document.getElementById('category-selector');
         const componentSelector = document.getElementById('component-selector');
         const componentDetails = document.getElementById('component-details');
@@ -116,20 +121,29 @@
             const fetchPromises = Object.entries(categories).map(async ([categoryName, categoryData]) => {
                 try {
                     const response = await fetch(categoryData.file);
-                    if (!response.ok) throw new Error(`Soubor ${categoryData.file} nebyl nalezen (stav: ${response.status})`);
+                    if (!response.ok) throw new Error(`nebyl nalezen (stav: ${response.status})`);
                     const csvText = await response.text();
                     parseCsvForCategory(csvText, categoryName);
                     return { status: 'fulfilled', category: categoryName };
                 } catch (error) {
                     console.error(`Chyba při načítání souboru pro kategorii '${categoryName}':`, error);
-                    return { status: 'rejected', category: categoryName, reason: error.message };
+                    return { status: 'rejected', category: categoryName, reason: error.message, file: categoryData.file };
                 }
             });
 
             const results = await Promise.all(fetchPromises);
+            const failedLoads = results.filter(r => r.status === 'rejected');
+
             if (results.every(r => r.status === 'rejected')) {
                  initialStateDiv.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg"><h3 class="text-xl font-bold">Chyba při načítání dat</h3><p class="mt-2">Aplikaci se nepodařilo načíst žádný z datových souborů.</p></div>`;
             } else {
+                 if (failedLoads.length > 0) {
+                    const errorMessages = failedLoads.map(f => `<li>Soubor <strong>${f.file}</strong> pro kategorii <strong>${f.category}</strong> ${f.reason}. Zkontrolujte název souboru a jeho obsah.</li>`).join('');
+                    errorContainer.innerHTML = `<div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 p-4 mb-4 rounded-md" role="alert">
+                        <p class="font-bold">Upozornění</p>
+                        <ul class="list-disc list-inside mt-2 text-sm">${errorMessages}</ul>
+                    </div>`;
+                }
                 initializeApp();
             }
         }
@@ -170,7 +184,7 @@
             const idIndex = headers.indexOf('ID');
 
             if (nameIndex === -1 || imageIndex === -1 || descriptionIndex === -1) {
-                console.error(`Chyba ve struktuře souboru pro '${categoryName}'. Chybí jeden ze sloupců: 'Name', 'Image', 'Description'.`);
+                console.error(`Chyba ve struktuře souboru pro '${categoryName}'. Chybí jeden ze sloupců: 'Name', 'Image', 'Description'. Zkontrolujte, zda jsou názvy sloupců správně a bez překlepů.`);
                 return;
             }
 
@@ -179,9 +193,13 @@
                 const row = parseCsvRow(rowText);
                 const componentName = row[nameIndex];
                 if (!componentName) return;
+                
+                // Pro kategorie bez variant (např. matice) použijeme samotný název jako skupinu
+                const groupKey = categories[categoryName].variationKey ? componentName : `${componentName}-${rowIndex}`;
 
-                if (!componentsData[categoryName][componentName]) {
-                    componentsData[categoryName][componentName] = {
+                if (!componentsData[categoryName][groupKey]) {
+                    componentsData[categoryName][groupKey] = {
+                        name: componentName, // Uložíme si původní název
                         image: row[imageIndex],
                         description: row[descriptionIndex],
                         variations: []
@@ -193,7 +211,7 @@
                 headers.forEach((header, index) => {
                     if (row[index]) variation.params[header] = row[index];
                 });
-                componentsData[categoryName][componentName].variations.push(variation);
+                componentsData[categoryName][groupKey].variations.push(variation);
             });
         }
 
@@ -208,25 +226,25 @@
         /**
          * Zobrazí detail komponenty.
          */
-        function showComponentDetails(category, componentName, selectedVariationId = null) {
-            const componentGroup = componentsData[category]?.[componentName];
+        function showComponentDetails(category, groupKey, selectedVariationId = null) {
+            const componentGroup = componentsData[category]?.[groupKey];
             if (!componentGroup) return;
 
-            activeComponentName = componentName;
+            activeComponentName = groupKey;
             const activeVariationId = selectedVariationId || componentGroup.variations[0].id;
             const activeVariation = componentGroup.variations.find(v => v.id === activeVariationId);
 
-            // *** UPRAVENO: Logika pro zobrazení variant je nyní flexibilní ***
             const categoryConfig = categories[category];
             const variationKey = categoryConfig.variationKey;
             
             let variationsBlockHtml = '';
-            // Zobrazíme blok s variantami jen pokud je pro kategorii definován klíč a existuje více než jedna varianta
             if (variationKey && componentGroup.variations.length > 1) {
                 const variationsHtml = componentGroup.variations.map(variation => {
-                    const length = variation.params[variationKey] || variation.id;
+                    const length = variation.params[variationKey];
+                    // Fallback, pokud klíč není nalezen, aby se nezobrazilo 'undefined'
+                    const buttonText = length !== undefined ? length : variation.id;
                     const isActive = variation.id === activeVariationId;
-                    return `<button onclick="showComponentDetails('${category}', '${componentName}', '${variation.id}')" class="variation-btn px-3 py-1.5 text-sm font-medium rounded-md shadow-sm border ${isActive ? 'active' : 'bg-white text-gray-700 hover:bg-gray-50'}">${length}</button>`;
+                    return `<button onclick="showComponentDetails('${category}', '${groupKey}', '${variation.id}')" class="variation-btn px-3 py-1.5 text-sm font-medium rounded-md shadow-sm border ${isActive ? 'active' : 'bg-white text-gray-700 hover:bg-gray-50'}">${buttonText}</button>`;
                 }).join('');
 
                 variationsBlockHtml = `
@@ -245,9 +263,9 @@
             componentDetails.innerHTML = `
                 <div class="bg-white rounded-xl shadow-lg overflow-hidden detail-card">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-0">
-                        <div class="p-4 bg-gray-50 flex items-center justify-center"><img src="${imageUrl}" alt="Výkres ${componentName}" class="max-w-full h-auto rounded-lg object-contain" onerror="this.onerror=null;this.src='https://placehold.co/600x400/e0e0e0/757575?text=Obr%C3%A1zek+nenalezen';"></div>
+                        <div class="p-4 bg-gray-50 flex items-center justify-center"><img src="${imageUrl}" alt="Výkres ${componentGroup.name}" class="max-w-full h-auto rounded-lg object-contain" onerror="this.onerror=null;this.src='https://placehold.co/600x400/e0e0e0/757575?text=Obr%C3%A1zek+nenalezen';"></div>
                         <div class="p-6">
-                            <h2 class="text-2xl font-bold text-blue-700 mb-2">${componentName}</h2>
+                            <h2 class="text-2xl font-bold text-blue-700 mb-2">${componentGroup.name}</h2>
                             <p class="text-gray-600 mb-4">${componentGroup.description}</p>
                             ${variationsBlockHtml}
                             <div class="overflow-x-auto rounded-lg border border-gray-200">
@@ -276,10 +294,11 @@
             
             const buttonContainer = document.createElement('div');
             buttonContainer.className = 'flex justify-center flex-wrap gap-2';
-            const components = Object.keys(componentsData[activeCategory]);
-            buttonContainer.innerHTML = components.map(name => {
-                const isActive = name === activeComponentName;
-                return `<button class="component-btn px-4 py-2 text-sm font-medium rounded-md shadow-sm border ${isActive ? 'active' : 'bg-white text-gray-700 hover:bg-gray-50'}" onclick="showComponentDetails('${activeCategory}', '${name}')">${name}</button>`;
+            const components = Object.values(componentsData[activeCategory]);
+            buttonContainer.innerHTML = components.map(group => {
+                const groupKey = group.variations[0].params.Name; // Klíč pro seskupení
+                const isActive = groupKey === activeComponentName;
+                return `<button class="component-btn px-4 py-2 text-sm font-medium rounded-md shadow-sm border ${isActive ? 'active' : 'bg-white text-gray-700 hover:bg-gray-50'}" onclick="showComponentDetails('${activeCategory}', '${groupKey}')">${group.name}</button>`;
             }).join('');
             componentSelector.appendChild(buttonContainer);
         }
@@ -293,7 +312,6 @@
             componentDetails.innerHTML = '';
             initialStateDiv.style.display = 'block';
             initialStateDiv.innerHTML = `<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2z" /></svg><h3 class="mt-2 text-sm font-medium text-gray-900">Vyberte díl</h3><p class="mt-1 text-sm text-gray-500">Nyní si vyberte konkrétní díl z kategorie "${categoryName}".</p>`;
-            renderCategoryButtons();
             renderComponentButtons(); 
         }
 
