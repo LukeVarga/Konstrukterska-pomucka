@@ -65,8 +65,7 @@
 
     <script>
         // --- Konfigurace ---
-        // ZDE VLOŽÍTE ODKAZ NA VAŠI PUBLIKOVANOU GOOGLE TABULKU.
-        // V dalším kroku si ukážeme, jak tento odkaz získat.
+        // Zde je vložena adresa vaší publikované Google Tabulky.
         const googleSheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQIU82h5HkJF_uKY9kOSHjAtckvYcOKtRZvDMXBGc2MizicJiDO4kFHeiixNLFONyxE56GJY_-7xBJE/pub?gid=0&single=true&output=csv';
 
         // --- Globální proměnné ---
@@ -83,16 +82,6 @@
          * Funkce pro načtení a zpracování dat z Google Sheets.
          */
         async function fetchAndProcessData() {
-            // Zkontrolujeme, zda je URL adresa vyplněna. Pokud ne, zobrazíme výzvu.
-            if (googleSheetUrl === 'SEM_PRIJDE_URL_ADRESA_VASI_TABULKY') {
-                initialStateDiv.innerHTML = `
-                    <h3 class="text-xl font-bold text-orange-600">Konfigurace chybí</h3>
-                    <p class="mt-2 text-gray-600">V kódu aplikace je potřeba nastavit URL adresu vaší Google Tabulky.</p>
-                    <p class="mt-1 text-sm text-gray-500">Otevřete HTML soubor v editoru a do proměnné <strong>googleSheetUrl</strong> vložte odkaz na publikovanou tabulku.</p>
-                `;
-                return;
-            }
-
             try {
                 const response = await fetch(googleSheetUrl);
                 if (!response.ok) {
@@ -115,18 +104,24 @@
          * Funkce převede text ve formátu CSV na datovou strukturu, se kterou aplikace pracuje.
          */
         function parseCsvToData(csvText) {
-            const rows = csvText.trim().split(/\r?\n/).map(row => row.split(',').map(cell => cell.trim()));
+            // Rozdělení podle řádků, ošetření pro různé konce řádků (\n nebo \r\n)
+            const rows = csvText.trim().split(/\r?\n/);
+            
             if (rows.length < 2) {
                 componentsData = {};
                 return;
             }
-            const headers = rows[0];
+
+            // Zpracování hlavičky (první řádek)
+            const headers = rows[0].split(',').map(cell => cell.trim());
             const dataRows = rows.slice(1);
             
             const paramHeaders = headers.slice(5);
             const data = {};
 
-            dataRows.forEach(row => {
+            dataRows.forEach(rowText => {
+                // Ošetření pro případ, že popis obsahuje čárku
+                const row = rowText.split(',').map(cell => cell.trim());
                 const category = row[0];
                 if (!category) return; 
 
@@ -256,4 +251,3 @@
     </script>
 </body>
 </html>
-
