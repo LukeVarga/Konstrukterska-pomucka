@@ -37,6 +37,8 @@
             <p class="text-md text-gray-600 mt-2">Data jsou dynamicky načítána z CSV souborů.</p>
         </header>
 
+        <div id="error-display" class="w-full max-w-4xl mx-auto space-y-2 mb-4"></div>
+
         <div id="selectors" class="space-y-6 mb-8">
             <div id="category-selector" class="flex justify-center flex-wrap gap-3"></div>
             <div id="type-selector" class="flex justify-center flex-wrap gap-2"></div>
@@ -66,11 +68,12 @@
     const categorySelector = document.getElementById('category-selector');
     const typeSelector = document.getElementById('type-selector');
     const detailsContainer = document.getElementById('details-container');
+    const errorDisplay = document.getElementById('error-display');
 
     async function loadApplicationData() {
         try {
             const categoriesResponse = await fetch(config.categoriesFile);
-            if (!categoriesResponse.ok) throw new Error(`Soubor kategorií '${config.categoriesFile}' nebyl nalezen.`);
+            if (!categoriesResponse.ok) throw new Error(`Hlavní soubor kategorií '${config.categoriesFile}' nebyl nalezen.`);
             const categoriesCsvText = await responseToText(categoriesResponse);
             const categoryList = parseCsv(categoriesCsvText);
 
@@ -78,19 +81,21 @@
 
             const dataPromises = categoryList.map(catInfo => {
                 const categoryName = catInfo.Kategorie;
+                if (!categoryName) return Promise.resolve(); // Přeskočit prázdné řádky v kategorie.csv
+
                 const dataFileName = `${categoryName}.csv`;
                 return fetch(dataFileName)
                     .then(response => {
-                        if (!response.ok) throw new Error(`Datový soubor '${dataFileName}' nebyl nalezen.`);
+                        if (!response.ok) throw new Error(`Datový soubor '${dataFileName}' pro kategorii '${categoryName}' se nepodařilo najít (chyba 404). Zkontrolujte, zda název souboru přesně odpovídá názvu v 'kategorie.csv'.`);
                         return responseToText(response);
                     })
                     .then(dataCsvText => {
-                        // ZDE JE ZMĚNA: Předáváme info o kategorii pro zpracování
                         processCategoryData(categoryName, catInfo, dataCsvText);
                     })
                     .catch(error => {
+                        // ZDE JE ZMĚNA: Místo tiché chyby v konzoli zobrazíme chybu uživateli
+                        displayError(error.message);
                         console.error(error);
-                        return { error: true, message: error.message };
                     });
             });
 
@@ -101,27 +106,27 @@
         }
     }
 
-    /**
-     * Zpracuje data pro jednu kategorii a vloží je do `appData`.
-     * Nově zohledňuje sloupec 'Sloučení' pro určení klíče variant.
-     */
     function processCategoryData(categoryName, categoryInfo, dataCsvText) {
         const productData = parseCsv(dataCsvText);
         if (productData.length === 0) return;
 
-        // ZDE JE ZMĚNA: Dynamické určení klíče pro varianty
         let variationKey = null;
         const slouceniIndex = parseInt(categoryInfo.Sloučení, 10);
-        if (!isNaN(slouceniIndex) && slouceniIndex > 0) {
-            const headers = Object.keys(productData[0]);
-            // Převedeme 1-based index na 0-based index pole
+        
+        const headers = Object.keys(productData[0]);
+        if (!headers.includes('Typ') || !headers.includes('Description')) {
+            displayError(`V souboru <strong>${categoryName}.csv</strong> chybí povinný sloupec 'Typ' nebo 'Description'. Data pro tuto kategorii nebudou načtena.`);
+            return;
+        }
+        
+        if (!isNaN(slouceniIndex) && slouceniIndex > 0 && headers.length >= slouceniIndex) {
             variationKey = headers[slouceniIndex - 1];
         }
 
         appData[categoryName] = {
             icon: categoryInfo.Ikona,
             image: categoryInfo.Obrázek,
-            variationKey: variationKey, // Uložíme si název klíče
+            variationKey: variationKey,
             components: {}
         };
 
@@ -141,10 +146,10 @@
 
     function initializeApp() {
         if (Object.keys(appData).length === 0) {
-            handleFatalError(new Error("Nepodařilo se načíst data pro žádnou kategorii."));
+            handleFatalError(new Error("Nepodařilo se úspěšně načíst data pro žádnou kategorii. Zkontrolujte chybová hlášení výše."));
             return;
         }
-        detailsContainer.innerHTML = '';
+        document.getElementById('initial-state')?.remove();
         renderCategoryButtons();
         const firstCategory = Object.keys(appData)[0];
         if (firstCategory) {
@@ -166,9 +171,9 @@
     }
 
     function renderTypeButtons() {
-        if (!activeCategory || !appData[activeCategory]) {
-            typeSelector.innerHTML = ''; return;
-        }
+        typeSelector.innerHTML = '';
+        if (!activeCategory || !appData[activeCategory]) return;
+
         typeSelector.innerHTML = Object.keys(appData[activeCategory].components).map(typeName => {
             const isActive = typeName === activeType;
             return `<button class="btn px-4 py-2 text-sm font-medium rounded-md shadow-sm border ${isActive ? 'active' : 'bg-white text-gray-700 hover:bg-gray-50'}" onclick="selectType('${activeCategory}', '${typeName}')">
@@ -177,28 +182,21 @@
         }).join('');
     }
 
-    /**
-     * Zobrazí detail produktu. Nově pracuje s dynamickým klíčem variant.
-     * @param {string} categoryName
-     * @param {string} typeName
-     * @param {string|null} selectedVariationValue - Hodnota vybrané varianty (např. délka "6")
-     */
     function showDetails(categoryName, typeName, selectedVariationValue = null) {
         const category = appData[categoryName];
         const component = category.components[typeName];
-        const variationKey = category.variationKey; // ZDE JE ZMĚNA: Získáme klíč z dat
+        const variationKey = category.variationKey;
 
         let activeVariation;
         if (variationKey && selectedVariationValue) {
             activeVariation = component.variations.find(v => v.params[variationKey] === selectedVariationValue);
         } else {
-            activeVariation = component.variations[0]; // Výchozí je první
+            activeVariation = component.variations[0];
         }
 
         if (!activeVariation) return;
 
         let variationsHtml = '';
-        // ZDE JE ZMĚNA: Zobrazíme tlačítka, jen pokud existuje klíč pro varianty a je jich víc než jedna
         if (variationKey && component.variations.length > 1) {
             const buttons = component.variations.map(v => {
                 const variationValue = v.params[variationKey];
@@ -256,6 +254,7 @@
 
     function parseCsv(csvText) {
         const lines = csvText.trim().split(/\r?\n/).filter(line => line);
+        if (lines.length === 0) return [];
         const headers = parseCsvRow(lines.shift());
         return lines.map(line => {
             const values = parseCsvRow(line);
@@ -280,10 +279,19 @@
         const messageElement = document.querySelector('#initial-state h3');
         if (messageElement) messageElement.textContent = message;
     }
+    
+    function displayError(message) {
+        const errorElement = document.createElement('div');
+        errorElement.className = "bg-red-100 border-l-4 border-red-500 text-red-700 p-4";
+        errorElement.setAttribute('role', 'alert');
+        errorElement.innerHTML = `<p class="font-bold">Chyba při načítání dat</p><p>${message}</p>`;
+        errorDisplay.appendChild(errorElement);
+    }
 
     function handleFatalError(error) {
         console.error("Kritická chyba:", error);
-        detailsContainer.innerHTML = `<div class="bg-red-100 border-red-500 text-red-700 border-l-4 p-4" role="alert"><p class="font-bold">Chyba aplikace</p><p>${error.message}. Zkontrolujte prosím konzoli pro více detailů.</p></div>`;
+        document.getElementById('selectors').style.display = 'none';
+        detailsContainer.innerHTML = `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert"><p class="font-bold">Chyba aplikace</p><p>${error.message}</p></div>`;
     }
 
     // --- Spuštění ---
