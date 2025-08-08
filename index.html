@@ -85,18 +85,18 @@
                 icon: "Lisovací matice ikona.png",
                 variationKey: null
             },
+            // OPRAVA 1: Aktualizované názvy souborů
             "Lisovací sloupky uzavřené": {
                 file: "data - Lisovací sloupky uzavřené.csv",
-                icon: "Lisovací sloupky uzavřené ikona.png",
-                // OPRAVA 2: Přidán výchozí obrázek pro celou kategorii
-                defaultImage: "Lisovací sloupky uzavřené.png",
+                icon: "2.png",
+                defaultImage: "2.png",
                 variationKey: "L"
             },
+            // OPRAVA 1: Aktualizované názvy souborů
             "Lisovací sloupky průchozí": {
                 file: "data - Lisovací sloupky průchozí.csv",
-                icon: "Lisovací sloupky průchozí ikona.png",
-                // OPRAVA 2: Přidán výchozí obrázek pro celou kategorii
-                defaultImage: "Lisovací sloupky průchozí.png",
+                icon: "1.png",
+                defaultImage: "1.png",
                 variationKey: "L"
             }
         };
@@ -113,9 +113,6 @@
         const componentDetails = document.getElementById('component-details');
         const initialStateDiv = document.getElementById('initial-state');
 
-        /**
-         * Načte a zpracuje data z více CSV souborů.
-         */
         async function fetchAndProcessData() {
             const fetchPromises = Object.entries(categories).map(async ([categoryName, categoryData]) => {
                 try {
@@ -147,9 +144,6 @@
             }
         }
 
-        /**
-         * Převede text ve formátu CSV na datovou strukturu.
-         */
         function parseCsvForCategory(csvText, categoryName) {
             if (csvText.charCodeAt(0) === 0xFEFF) {
                 csvText = csvText.slice(1);
@@ -222,9 +216,6 @@
             });
         }
 
-        /**
-         * Inicializuje aplikaci po načtení dat.
-         */
         function initializeApp() {
             initialStateDiv.style.display = 'none';
             renderCategoryButtons();
@@ -236,9 +227,6 @@
             }
         }
 
-        /**
-         * Zobrazí detail komponenty.
-         */
         function showComponentDetails(category, groupKey, selectedVariationId = null) {
             const componentGroup = componentsData[category]?.[groupKey];
             if (!componentGroup) {
@@ -264,10 +252,12 @@
                 const variationsHtml = componentGroup.variations.map(variation => {
                     let buttonText = variation.params[variationKey] !== undefined ? variation.params[variationKey] : variation.id;
                     
-                    // OPRAVA 3: Získání pouze čísla z textu varianty pro lepší přehlednost
-                    const numberMatch = String(buttonText).match(/\d+(\.\d+)?/);
-                    if (numberMatch) {
-                        buttonText = numberMatch[0];
+                    // OPRAVA 2: Získání POSLEDNÍHO čísla z textu varianty.
+                    // Najde VŠECHNA čísla v textu (díky 'g' na konci)
+                    const numberMatches = String(buttonText).match(/\d+(\.\d+)?/g);
+                    // Pokud nějaká čísla našel, vezme to POSLEDNÍ z nich
+                    if (numberMatches && numberMatches.length > 0) {
+                        buttonText = numberMatches[numberMatches.length - 1];
                     }
 
                     const isActive = variation.id === activeVariation.id;
@@ -286,8 +276,6 @@
                 return `<tr class="border-b border-gray-200 last:border-b-0"><td class="py-3 px-4 text-sm font-medium text-gray-600">${key}</td><td class="py-3 px-4 text-sm text-gray-800 font-semibold">${value}</td></tr>`;
             }).join('');
 
-            // OPRAVA 2: Logika pro zobrazení obrázku. Prioritu má obrázek z CSV,
-            // pokud chybí, použije se `defaultImage` z konfigurace kategorie.
             const imageFile = componentGroup.image || categoryConfig.defaultImage;
             const imageUrl = imageFile ? `${imageBasePath}${imageFile}` : 'https://placehold.co/600x400/e0e0e0/757575?text=Obr%C3%A1zek+nenalezen';
             
@@ -306,13 +294,10 @@
                     </div>
                 </div>`;
             initialStateDiv.style.display = 'none';
-            renderComponentButtons(); // Překreslí tlačítka pro zvýraznění aktivního
-            renderCategoryButtons(); // Překreslí kategorie pro zvýraznění aktivní
+            renderComponentButtons();
+            renderCategoryButtons();
         }
 
-        /**
-         * Vykreslí tlačítka pro výběr komponent v aktivní kategorii.
-         */
         function renderComponentButtons() {
             componentSelector.innerHTML = '';
             if (!activeCategory || !componentsData[activeCategory]) return;
@@ -328,15 +313,12 @@
             componentSelector.appendChild(buttonContainer);
         }
         
-        /**
-         * Zvolí aktivní kategorii a připraví zobrazení.
-         */
         function selectCategory(categoryName) {
             if (activeCategory === categoryName && componentDetails.innerHTML !== '') return;
 
             activeCategory = categoryName;
             activeGroupKey = null; 
-            componentDetails.innerHTML = ''; // Vyčistit detaily
+            componentDetails.innerHTML = '';
             initialStateDiv.style.display = 'block';
             initialStateDiv.innerHTML = `<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2z" /></svg><h3 class="mt-2 text-sm font-medium text-gray-900">Vyberte díl</h3><p class="mt-1 text-sm text-gray-500">Nyní si vyberte konkrétní díl z kategorie "${categoryName}".</p>`;
             
@@ -344,15 +326,11 @@
             renderComponentButtons(); 
         }
 
-        /**
-         * Vykreslí tlačítka pro výběr kategorií.
-         */
         function renderCategoryButtons() {
             categorySelector.innerHTML = Object.entries(categories).map(([categoryName, config]) => {
                 if (!componentsData[categoryName] || Object.keys(componentsData[categoryName]).length === 0) return '';
                 const isActive = categoryName === activeCategory;
                 
-                // OPRAVA 1: Přidání ikony do tlačítka kategorie
                 const iconHtml = config.icon ? `<img src="${imageBasePath}${config.icon}" alt="" class="w-5 h-5 mr-2 inline-block">` : '';
 
                 return `<button class="component-btn px-5 py-2.5 text-base font-semibold rounded-lg shadow-md border flex items-center justify-center ${isActive ? 'active' : 'bg-white text-blue-600 border-blue-600 hover:bg-blue-50'}" onclick="selectCategory('${categoryName}')">
@@ -362,7 +340,6 @@
             }).join('');
         }
 
-        // --- Spuštění aplikace ---
         window.onload = fetchAndProcessData;
     </script>
 </body>
