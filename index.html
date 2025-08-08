@@ -74,22 +74,27 @@
 
     <script>
         // --- Konfigurace ---
+        // *** UPRAVENO: Konfigurace nyní obsahuje i 'variationKey' pro určení sloupce s variantami ***
         const categories = {
             "Lisovací šrouby": {
                 file: "data - Lisovací šrouby.csv",
-                icon: "Lisovací šroub ikona.png"
+                icon: "Lisovací šroub ikona.png",
+                variationKey: "L±0,4" // Varianty se berou ze sloupce 'L±0,4'
             },
             "Lisovací matice": {
                 file: "data - Lisovací matice.csv",
-                icon: "Lisovací matice ikona.png"
+                icon: "Lisovací matice ikona.png",
+                variationKey: null // Matice se neseskupují do variant, proto null
             },
             "Lisovací sloupky uzavřené": {
                 file: "data - Lisovací sloupky uzavřené.csv",
-                icon: "Lisovací sloupek uzavřený ikona.png"
+                icon: "Lisovací sloupek uzavřený ikona.png",
+                variationKey: "L" // ZMĚŇTE "L" na skutečný název sloupce pro délku ve vašem CSV!
             },
             "Lisovací sloupky průchozí": {
                 file: "data - Lisovací sloupky průchozí.csv",
-                icon: "Lisovací sloupek průchozí ikona.png"
+                icon: "Lisovací sloupek průchozí ikona.png",
+                variationKey: "L" // ZMĚŇTE "L" na skutečný název sloupce pro délku ve vašem CSV!
             }
         };
         const imageBasePath = 'images/';
@@ -211,11 +216,25 @@
             const activeVariationId = selectedVariationId || componentGroup.variations[0].id;
             const activeVariation = componentGroup.variations.find(v => v.id === activeVariationId);
 
-            const variationsHtml = componentGroup.variations.map(variation => {
-                const length = variation.params['L±0,4'] || variation.id;
-                const isActive = variation.id === activeVariationId;
-                return `<button onclick="showComponentDetails('${category}', '${componentName}', '${variation.id}')" class="variation-btn px-3 py-1.5 text-sm font-medium rounded-md shadow-sm border ${isActive ? 'active' : 'bg-white text-gray-700 hover:bg-gray-50'}">${length}</button>`;
-            }).join('');
+            // *** UPRAVENO: Logika pro zobrazení variant je nyní flexibilní ***
+            const categoryConfig = categories[category];
+            const variationKey = categoryConfig.variationKey;
+            
+            let variationsBlockHtml = '';
+            // Zobrazíme blok s variantami jen pokud je pro kategorii definován klíč a existuje více než jedna varianta
+            if (variationKey && componentGroup.variations.length > 1) {
+                const variationsHtml = componentGroup.variations.map(variation => {
+                    const length = variation.params[variationKey] || variation.id;
+                    const isActive = variation.id === activeVariationId;
+                    return `<button onclick="showComponentDetails('${category}', '${componentName}', '${variation.id}')" class="variation-btn px-3 py-1.5 text-sm font-medium rounded-md shadow-sm border ${isActive ? 'active' : 'bg-white text-gray-700 hover:bg-gray-50'}">${length}</button>`;
+                }).join('');
+
+                variationsBlockHtml = `
+                    <div class="mb-6">
+                        <h4 class="text-sm font-bold text-gray-500 mb-2">Dostupné varianty:</h4>
+                        <div class="flex flex-wrap gap-2">${variationsHtml}</div>
+                    </div>`;
+            }
 
             const paramsHtml = Object.entries(activeVariation.params).map(([key, value]) => {
                  if (['Name', 'Image', 'Description', 'ID'].includes(key)) return ''; 
@@ -230,10 +249,7 @@
                         <div class="p-6">
                             <h2 class="text-2xl font-bold text-blue-700 mb-2">${componentName}</h2>
                             <p class="text-gray-600 mb-4">${componentGroup.description}</p>
-                            <div class="mb-6">
-                                <h4 class="text-sm font-bold text-gray-500 mb-2">Dostupné varianty (Délka L):</h4>
-                                <div class="flex flex-wrap gap-2">${variationsHtml}</div>
-                            </div>
+                            ${variationsBlockHtml}
                             <div class="overflow-x-auto rounded-lg border border-gray-200">
                                 <table class="w-full text-left"><tbody class="bg-white">${paramsHtml}</tbody></table>
                             </div>
