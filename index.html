@@ -132,10 +132,12 @@
             const dataRows = lines.slice(1);
             const data = {};
 
-            const nameIndex = headers.indexOf('name');
+            // *** OPRAVENO: Použití přesných názvů sloupců z CSV (včetně velikosti písmen) ***
+            const nameIndex = headers.indexOf('Name');
             const categoryIndex = headers.indexOf('Kategorie');
-            const imageIndex = headers.indexOf('image');
-            const descriptionIndex = headers.indexOf('description');
+            const imageIndex = headers.indexOf('Image');
+            const descriptionIndex = headers.indexOf('Description');
+            const idIndex = headers.indexOf('ID');
 
             dataRows.forEach(rowText => {
                 if (!rowText) return;
@@ -153,7 +155,7 @@
                     };
                 }
 
-                const variation = { id: row[headers.indexOf('id')], params: {} };
+                const variation = { id: row[idIndex], params: {} };
                 headers.forEach((header, index) => {
                     if (row[index]) variation.params[header] = row[index];
                 });
@@ -167,7 +169,7 @@
          */
         function initializeApp() {
             if (Object.keys(componentsData).length === 0) {
-                initialStateDiv.innerHTML = `<h3 class="text-xl font-bold text-blue-600">Žádná data</h3><p class="mt-2 text-gray-600">V souboru <strong>data.csv</strong> nejsou žádná data.</p>`;
+                initialStateDiv.innerHTML = `<h3 class="text-xl font-bold text-blue-600">Žádná data</h3><p class="mt-2 text-gray-600">V souboru <strong>data.csv</strong> nejsou žádná data nebo je chyba ve struktuře souboru (např. v názvech sloupců).</p>`;
             } else {
                 initialStateDiv.style.display = 'none';
                 renderCategoryButtons();
@@ -191,13 +193,15 @@
             const activeVariation = componentGroup.variations.find(v => v.id === activeVariationId);
 
             const variationsHtml = componentGroup.variations.map(variation => {
-                const length = variation.params['Délka'] || variation.id;
+                // *** OPRAVENO: Použití správného názvu sloupce pro délku ***
+                const length = variation.params['L±0,4'] || variation.id;
                 const isActive = variation.id === activeVariationId;
                 return `<button onclick="showComponentDetails('${category}', '${componentName}', '${variation.id}')" class="variation-btn px-3 py-1.5 text-sm font-medium rounded-md shadow-sm border ${isActive ? 'active' : 'bg-white text-gray-700 hover:bg-gray-50'}">${length}</button>`;
             }).join('');
 
             const paramsHtml = Object.entries(activeVariation.params).map(([key, value]) => {
-                 if (['Kategorie', 'name', 'image', 'description', 'id'].includes(key)) return ''; // Skryjeme duplicitní/interní data
+                 // *** OPRAVENO: Skrytí interních dat podle správných názvů sloupců ***
+                 if (['Kategorie', 'Name', 'Image', 'Description', 'ID'].includes(key)) return ''; 
                 return `<tr class="border-b border-gray-200 last:border-b-0"><td class="py-3 px-4 text-sm font-medium text-gray-600">${key}</td><td class="py-3 px-4 text-sm text-gray-800 font-semibold">${value}</td></tr>`;
             }).join('');
 
@@ -210,7 +214,7 @@
                             <h2 class="text-2xl font-bold text-blue-700 mb-2">${componentName}</h2>
                             <p class="text-gray-600 mb-4">${componentGroup.description}</p>
                             <div class="mb-6">
-                                <h4 class="text-sm font-bold text-gray-500 mb-2">Dostupné varianty (Délka):</h4>
+                                <h4 class="text-sm font-bold text-gray-500 mb-2">Dostupné varianty (Délka L):</h4>
                                 <div class="flex flex-wrap gap-2">${variationsHtml}</div>
                             </div>
                             <div class="overflow-x-auto rounded-lg border border-gray-200">
