@@ -76,16 +76,20 @@
         // --- Konfigurace ---
         const categories = {
             "Lisovací šrouby": {
-                file: "Lisovací šrouby.csv",
+                file: "data - Lisovací šrouby.csv",
                 icon: "Lisovací šroub ikona.png"
             },
             "Lisovací matice": {
-                file: "Lisovací matice.csv",
+                file: "data - Lisovací matice.csv",
                 icon: "Lisovací matice ikona.png"
             },
-            "Lisovací sloupky": {
-                file: "Lisovací sloupky.csv",
-                icon: "Lisovací sloupek ikona.png"
+            "Lisovací sloupky uzavřené": {
+                file: "data - Lisovací sloupky uzavřené.csv",
+                icon: "Lisovací sloupek uzavřený ikona.png"
+            },
+            "Lisovací sloupky průchozí": {
+                file: "data - Lisovací sloupky průchozí.csv",
+                icon: "Lisovací sloupek průchozí ikona.png"
             }
         };
         const imageBasePath = 'images/';
@@ -132,7 +136,6 @@
             const lines = csvText.trim().split(/\r?\n/);
             if (lines.length < 2) return;
             
-            // *** OPRAVENO: Funkce parsuje řádky oddělené čárkou (,) ***
             const parseCsvRow = (rowText) => {
                 const result = [];
                 let currentField = '';
@@ -140,7 +143,7 @@
                 for (const char of rowText) {
                     if (char === '"' && (inQuotes || currentField.length === 0)) {
                         inQuotes = !inQuotes;
-                    } else if (char === ',' && !inQuotes) { // Změna zpět na ','
+                    } else if (char === ',' && !inQuotes) {
                         result.push(currentField.trim());
                         currentField = '';
                     } else {
@@ -248,7 +251,6 @@
             componentSelector.innerHTML = '';
             if (!activeCategory || !componentsData[activeCategory]) return;
             
-            // *** OPRAVENO: Ikona se zobrazí pouze pokud není vybrána žádná komponenta ***
             if (!activeComponentName) {
                 const categoryIcon = categories[activeCategory]?.icon;
                 if (categoryIcon) {
@@ -271,12 +273,12 @@
          */
         function selectCategory(categoryName) {
             activeCategory = categoryName;
-            activeComponentName = null; // Reset výběru komponenty
+            activeComponentName = null; 
             componentDetails.innerHTML = '';
             initialStateDiv.style.display = 'block';
             initialStateDiv.innerHTML = `<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2z" /></svg><h3 class="mt-2 text-sm font-medium text-gray-900">Vyberte díl</h3><p class="mt-1 text-sm text-gray-500">Nyní si vyberte konkrétní díl z kategorie "${categoryName}".</p>`;
             renderCategoryButtons();
-            renderComponentButtons(); // Zobrazí ikonu a tlačítka
+            renderComponentButtons(); 
         }
 
         /**
