@@ -65,9 +65,13 @@
 
     <script>
         // --- Konfigurace ---
-        // Cesta k souboru s daty v rámci tohoto repozitáře.
-        // Ujistěte se, že jste na GitHub nahráli soubor s názvem 'data.csv'.
+        // Cesta k souboru s daty. Ujistěte se, že je soubor 'data.csv' nahrán na GitHub.
         const dataUrl = 'data.csv';
+        
+        // *** NOVÉ ***
+        // Cesta ke složce s obrázky. Vytvořte na GitHubu složku 'images' a nahrajte do ní obrázky.
+        // V CSV souboru pak stačí uvádět jen název souboru (např. "sroub-m5.png").
+        const imageBasePath = 'images/';
 
         // --- Globální proměnné ---
         let componentsData = {};
@@ -153,7 +157,7 @@
                 const component = {
                     id: row[1],
                     name: row[2],
-                    image: row[3],
+                    image: row[3], // Zde je stále jen název souboru, např. "obrazek.png"
                     description: row[4],
                     params: {}
                 };
@@ -200,12 +204,16 @@
                         <td class="py-3 px-4 text-sm text-gray-800 font-semibold">${value}</td>
                     </tr>`;
             }
+            
+            // *** UPRAVENO ***
+            // Sestavení kompletní cesty k obrázku spojením cesty ke složce a názvu souboru.
+            const imageUrl = `${imageBasePath}${component.image}`;
 
             componentDetails.innerHTML = `
                 <div class="bg-white rounded-xl shadow-lg overflow-hidden detail-card">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-0">
                         <div class="p-4 bg-gray-50 flex items-center justify-center">
-                            <img src="${component.image}" alt="Technický výkres ${component.name}" class="max-w-full h-auto rounded-lg object-contain" onerror="this.onerror=null;this.src='https://placehold.co/600x400/e0e0e0/757575?text=Obr%C3%A1zek+nenalezen';">
+                            <img src="${imageUrl}" alt="Technický výkres ${component.name}" class="max-w-full h-auto rounded-lg object-contain" onerror="this.onerror=null;this.src='https://placehold.co/600x400/e0e0e0/757575?text=Obr%C3%A1zek+nenalezen';">
                         </div>
                         <div class="p-6">
                             <h2 class="text-2xl font-bold text-blue-700 mb-2">${component.name}</h2>
